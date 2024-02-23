@@ -1,7 +1,9 @@
 datetime
 csv
 requests
-requests 
+re 
 axe-core 
 selenium 
 webdriver_manager
+textstat
+beautifulsoup4
