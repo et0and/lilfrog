@@ -1,3 +1,7 @@
 datetime
 csv
 requests
+requests 
+axe-core 
+selenium 
+webdriver_manager
