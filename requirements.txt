@@ -7,3 +7,4 @@ selenium
 webdriver_manager
 textstat
 beautifulsoup4
+deque
