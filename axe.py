@@ -24,5 +24,8 @@ with open('results.csv', mode='w', newline='') as file:
                 browser.close()
 
             violations = result.get('violations', [])
-            writer.writerow([url, ', '.join([str(v) for v in violations])])
+            detailed_violations = []
+            for v in violations:
+                detailed_violations.append(f"{v['id']} - {v['description']} (Line {v['nodes'][0]['line']})")
+            writer.writerow([url, ', '.join(detailed_violations)])
             tqdm.write(f"{len(violations)} violations found on {url}")  # Use tqdm.write for print
