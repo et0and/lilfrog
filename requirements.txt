@@ -2,7 +2,7 @@ datetime
 csv
 requests
 re 
-axe-core 
+axe-core-python 
 selenium 
 webdriver_manager
 textstat
