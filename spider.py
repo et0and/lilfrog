@@ -1,21 +1,17 @@
 import requests
-from bs4 import BeautifulSoup
 import csv
 from datetime import datetime
 from tqdm import tqdm
+from bs4 import BeautifulSoup
 
-def check_url(url):
+def check_url(url, parent_url=None):
     try:
         response = requests.get(url)
-        return response.status_code == 200
-    except requests.exceptions.RequestException:
-        return False
-
-def get_links(url):
-    try:
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        return [url.get('href') for url in soup.find_all('a', href=True)]
+        if response.status_code == 200:
+            # If the URL is working, find and return any links in the URL
+            soup = BeautifulSoup(response.text, 'html.parser')
+            return [(parent_url, link.get('href')) for link in soup.find_all('a', href=True)]
+        return []
     except requests.exceptions.RequestException:
         return []
 
@@ -29,23 +25,19 @@ with open(filename, 'w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(["Parent URL", "URL", "Status"])
 
-# Ask for the URL to scan
-url_to_scan = input("Please enter the URL to scan: ")
+# Read the initial URLs
+with open('urls.txt', 'r') as file:
+    urls = [line.strip() for line in file.readlines()]
 
-# List to store visited URLs
-visited_urls = []
+# Use a queue to hold URLs to check
+to_check = urls[:]
 
-# Recursively scan the website
-def scan_website(parent_url, url):
-    if url in visited_urls:
-        return
-    visited_urls.append(url)
-    status = "working" if check_url(url) else "broken"
-    with open(filename, 'a', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow([parent_url, url, status])
-    for link in tqdm(get_links(url)):
-        if link.startswith(url_to_scan):
-            scan_website(url, link)
-
-scan_website(url_to_scan, url_to_scan)
+while to_check:
+    url = to_check.pop(0)
+    links = check_url(url)
+    for parent_url, link in links:
+        # Write the result to the CSV file
+        with open(filename, 'a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([parent_url, link, "working"])
+        to_check.append(link)
