@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from lxml import etree
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 def crawl(url, domain):
     visited_links = set()
@@ -12,18 +12,22 @@ def crawl(url, domain):
         if current_url not in visited_links:
             try:
                 response = requests.get(current_url)
+                response.raise_for_status()  # Raise an HTTPError if the HTTP request returned an unsuccessful status code
                 soup = BeautifulSoup(response.text, 'html.parser')
 
-                for link in soup.find_all('a'):
+                for link in soup.find_all('a', href=True):
                     href = link.get('href')
-                    if href.startswith(domain) or not href.startswith('http'):
-                        full_link = urljoin(domain, href)
-                        if full_link not in visited_links:
-                            links_to_visit.append(full_link)
+                    # Make sure href is not None and is not a fragment or mailto link
+                    if href and not href.startswith('#') and not href.startswith('mailto:') and not href.startswith('tel:'):
+                        full_link = urljoin(current_url, href)
+                        # Check if the link is within the same domain
+                        if urlparse(full_link).netloc == urlparse(domain).netloc:
+                            if full_link not in visited_links:
+                                links_to_visit.append(full_link)
 
                 visited_links.add(current_url)
-            except Exception as e:
-                print(f"Error: {e}")
+            except requests.exceptions.RequestException as e:
+                print(f"Error with URL {current_url}: {e}")
 
     return visited_links
 
@@ -35,14 +39,15 @@ def generate_sitemap_xml(links, output_file='sitemap.xml'):
         loc = etree.SubElement(url, 'loc')
         loc.text = link
 
-    xml_data = etree.tostring(urlset, encoding='unicode', xml_declaration=True, pretty_print=True)
+    xml_data = etree.tostring(urlset, encoding='utf-8', xml_declaration=True, pretty_print=True)
 
-    with open(output_file, 'w') as f:
+    with open(output_file, 'wb') as f:
         f.write(xml_data)
 
 if __name__ == '__main__':
     user_url = input("Enter the URL to crawl (including 'http(s)://'): ")
-    domain = user_url if user_url.endswith('/') else user_url + '/'
+    parsed_domain = urlparse(user_url)
+    domain = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_domain)
     crawled_links = crawl(user_url, domain)
     generate_sitemap_xml(crawled_links)
     print(f"Sitemap generated as sitemap.xml")
