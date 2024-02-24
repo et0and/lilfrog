@@ -1,4 +1,4 @@
-![Cute black and white drawing of a frog](/IMG_2212.png)
+![Cute black and white drawing of a frog](lilfrog.png)
 # lilfrog (alpha)
 A Python suite for maintaining content-driven websites
 
