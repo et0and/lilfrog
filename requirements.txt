@@ -8,3 +8,4 @@ playwright
 textstat
 beautifulsoup4
 deque
+tqdm
