@@ -1,51 +1,52 @@
 import csv
-import argparse
-from concurrent.futures import ThreadPoolExecutor
 from playwright.sync_api import sync_playwright
 from axe_core_python.sync_playwright import Axe
-from tqdm import tqdm
+from progiter import ProgIter
 
-def analyze_url(url):
+axe = Axe()
+
+def write_results_to_csv(writer, results_batch):
+    for result in results_batch:
+        writer.writerow(result)
+
+# Open the CSV file for writing
+with open('results.csv', mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(["URL", "Violations"])
+
+    # Read the URLs from the file
+    with open('urls.txt', 'r') as url_file:
+        urls = [url.strip() for url in url_file]  # Remove any trailing newline and store URLs
+
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
-        page = browser.new_page()
-        
-        try:
-            # Set a generous timeout for navigation if the sites are slow to load
-            page.goto(url, timeout=60000)
-            result = axe.run(page)
-            violations = result.get('violations', [])
-            tqdm.write(f"{len(violations)} violations found on {url}")
-            return url, ', '.join([str(v) for v in violations])
-        except Exception as e:
-            # Handle exceptions, like timeouts, and log them
-            tqdm.write(f"Timeout or other error occurred while visiting {url}: {e}")
-            return url, "Error occurred"
-        finally:
-            # Ensure the page is closed after each iteration
-            page.close()
-            browser.close()
+        results_batch = []  # Initialize a list to store results for batch processing
+        batch_size = 10     # Define batch size; adjust this number based on your needs
 
-def main(threads):
-    axe = Axe()
-    # Open the CSV file for writing
-    with open('results.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["URL", "Violations"])
+        # Use ProgIter to wrap around urls for progress bar
+        for url in ProgIter(urls, verbose=2):
+            try:
+                page = browser.new_page()
+                # Set a generous timeout for navigation if the sites are slow to load
+                page.goto(url, timeout=60000)
+                result = axe.run(page)
+                violations = result.get('violations', [])
+                results_batch.append([url, ', '.join([str(v) for v in violations])])
+                print(f"{len(violations)} violations found on {url}")
+            except Exception as e:
+                # Handle exceptions, like timeouts, and log them
+                print(f"Timeout or other error occurred while visiting {url}: {e}")
+            finally:
+                # Ensure the page is closed after each iteration
+                page.close()
 
-        # Read the URLs from the file
-        with open('urls.txt', 'r') as url_file:
-            urls = [url.strip() for url in url_file]  # Remove any trailing newline and store URLs
+            # Write results in batches
+            if len(results_batch) >= batch_size:
+                write_results_to_csv(writer, results_batch)
+                results_batch = []  # Reset the results batch after writing
 
-        # Use ThreadPoolExecutor to run axe analysis in parallel
-        with ThreadPoolExecutor(max_workers=threads) as executor:
-            # Use tqdm to wrap around executor for progress bar
-            for result in tqdm(executor.map(analyze_url, urls), total=len(urls)):
-                writer.writerow(result)
+        # Write any remaining results that did not fill up the last batch
+        if results_batch:
+            write_results_to_csv(writer, results_batch)
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run axe analysis on a list of URLs.")
-    parser.add_argument('-t', '--threads', type=int, default=1, help="Number of threads to use")
-    args = parser.parse_args()
-
-    main(args.threads)
+        browser.close()

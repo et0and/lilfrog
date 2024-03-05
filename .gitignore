@@ -1,2 +1,8 @@
 node_modules
 .gitpod.yml
+output.csv
+results.csv
+urls.txt
+broken_links.csv
+brokenlinks.csv
+reading.csv

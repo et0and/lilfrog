@@ -1,11 +1,10 @@
 datetime
-csv
 requests
-re 
 axe-core-python 
 selenium 
 playwright
 textstat
 beautifulsoup4
-deque
 tqdm
+trafilatura
+asyncio
